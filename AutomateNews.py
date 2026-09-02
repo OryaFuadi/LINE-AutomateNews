@@ -1,7 +1,8 @@
 import os
+import time
 import requests
 from google import genai
-from duckduckgo_search import DDGS # Kita gunakan ini langsung untuk mengambil gambar
+from ddgs import DDGS # 👈 Sudah diperbarui agar tidak muncul warning lagi
 
 # ==========================================
 # 1. KREDENSIAL & INISIALISASI
@@ -20,20 +21,16 @@ print("🤖 AI sedang mencari berita dan gambar...")
 berita_mentah = ""
 gambar_utama = ""
 
-# Mencari berita spesifik (max 7 berita terbaru)
 with DDGS() as ddgs:
     hasil_news = list(ddgs.news("Perkembangan AI teknologi terbaru", max_results=7))
     
     for i, berita in enumerate(hasil_news):
-        # Kumpulkan teks berita untuk dibaca Gemini
         berita_mentah += f"{i+1}. Judul: {berita.get('title')}\nIsi: {berita.get('body')}\n\n"
-        
-        # Ambil gambar dari berita pertama yang memiliki link gambar https
         if not gambar_utama and berita.get('image') and berita.get('image').startswith('https'):
             gambar_utama = berita.get('image')
 
 # ==========================================
-# 3. SURUH GEMINI MERANGKUMNYA LEBIH PANJANG
+# 3. SURUH GEMINI MERANGKUMNYA (DENGAN SISTEM COBA LAGI)
 # ==========================================
 print("🧠 AI sedang merangkum berita yang lebih banyak...")
 prompt = f"""
@@ -44,11 +41,25 @@ Kumpulan Berita:
 {berita_mentah}
 """
 
-response = client.models.generate_content(
-    model="gemini-3.6-flash",
-    contents=prompt,
-)
-hasil_rangkuman = response.text
+hasil_rangkuman = ""
+maksimal_percobaan = 3
+
+# 👈 SISTEM ANTI-GAGAL: Akan mencoba hingga 3 kali jika server sibuk
+for percobaan in range(maksimal_percobaan):
+    try:
+        response = client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=prompt,
+        )
+        hasil_rangkuman = response.text
+        print("✅ Rangkuman berhasil dibuat!")
+        break  # Jika berhasil, langsung keluar dari perulangan
+    except Exception as e:
+        print(f"⚠️ Percobaan {percobaan + 1} gagal (Server Google sibuk). Menunggu 15 detik...")
+        time.sleep(15) # Tunggu 15 detik sebelum mencoba lagi
+else:
+    print("❌ Server Google Gemini benar-benar penuh setelah 3 kali percobaan.")
+    hasil_rangkuman = "Halo! Maaf, bot berita saat ini belum bisa merangkum karena server Google AI sedang kepenuhan. Nanti saya coba lagi di jadwal berikutnya ya! 🤖"
 
 # ==========================================
 # 4. KIRIM TEKS DAN GAMBAR KE LINE
@@ -60,11 +71,10 @@ def kirim_ke_line(pesan, url_gambar):
         "Authorization": f"Bearer {LINE_TOKEN}"
     }
     
-    # Kita bisa mengirim maksimal 5 pesan sekaligus di LINE
-    # Pesan 1: Gambar (Jika berhasil ditemukan), Pesan 2: Teks Berita
     pesan_array = []
     
-    if url_gambar:
+    # Hanya kirim gambar jika berhasil merangkum berita (tidak error)
+    if url_gambar and "Maaf" not in pesan:
         pesan_array.append({
             "type": "image",
             "originalContentUrl": url_gambar,
