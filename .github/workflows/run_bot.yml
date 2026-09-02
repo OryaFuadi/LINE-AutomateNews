@@ -20,8 +20,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install google-genai duckduckgo-search requests
-
+          pip install google-genai ddgs requests
+          
       - name: Run the bot script
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
