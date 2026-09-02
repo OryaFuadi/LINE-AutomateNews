@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install google-genai langchain-community duckduckgo-search requests
+          pip install google-genai langchain-community duckduckgo-search ddgs requests
 
       - name: Run the bot script
         env:
