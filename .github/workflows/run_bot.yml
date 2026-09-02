@@ -28,4 +28,4 @@ jobs:
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
-          python line_automatenews.py
+          python AutomateNews.py
